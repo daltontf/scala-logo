@@ -33,15 +33,15 @@
 		</dependency>
 
 		<dependency>
-			<groupId>tfd.gui.swing</groupId>
-			<artifactId>cut-copy-paste-popup</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-		
-		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.4</version>
+			<version>4.5</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.netbeans</groupId>
+			<artifactId>jemmy</artifactId>
+			<version>2.2.7.5</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
