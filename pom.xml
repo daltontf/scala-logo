@@ -68,6 +68,20 @@
 					</args>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>java</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<mainClass>tfd.logo.Main</mainClass>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
