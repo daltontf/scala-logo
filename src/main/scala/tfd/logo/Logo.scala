@@ -6,24 +6,22 @@ import java.awt.{BorderLayout, Color, Dimension, Graphics, Graphics2D}
 import java.awt.event.{ActionEvent}
 import java.awt.image.{BufferedImage}
 import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
+import Math._
 
 import tfd.gui.swing.CutCopyPastePopupSupport
 
-import scala.util.parsing.combinator.JavaTokenParsers
+import scala.util.parsing.combinator.RegexParsers
 
-abstract class LogoOp
-case class Home() extends LogoOp
-case class Forward(x: Int) extends LogoOp
-case class Turn(x: Int) extends LogoOp
-case class Repeat(i: Int, e: List[LogoOp]) extends LogoOp
-
-case class Position(x:Int, y:Int)
+sealed abstract class LogoCommand
+case class Forward(x: Int) extends LogoCommand
+case class Turn(x: Int) extends LogoCommand
+case class Repeat(i: Int, e: List[LogoCommand]) extends LogoCommand
 
 class DrawCanvas extends JComponent {
   private var image:BufferedImage = null
   private var imageHeight:Int = 0
   private var imageWidth:Int = 0
-  private var parseResult:LogoParser.ParseResult[List[LogoOp]] = null
+  private var parseResult:LogoParser.ParseResult[List[LogoCommand]] = null
 
   override def setSize(size:Dimension) {
 	super.setSize(size)
@@ -40,7 +38,7 @@ class DrawCanvas extends JComponent {
 	}
   }
  
-  def updateParseResult(parseResult: LogoParser.ParseResult[List[LogoOp]]) {
+  def updateParseResult(parseResult: LogoParser.ParseResult[List[LogoCommand]]) {
     this.parseResult = parseResult
     doDraw()
   }
@@ -100,6 +98,7 @@ class MainApplication {
     										val buffer = new StringBuffer(file.length.asInstanceOf[Int])
     										while (reader.ready) {
     											buffer.append(reader.readLine)
+    											buffer.append("\n")
     										}
     										reader.close
     										buffer
@@ -146,7 +145,7 @@ class MainApplication {
     lazy val runAction = new AbstractAction {
     	  		  
   			override def actionPerformed(ae:ActionEvent) {
-   				new SwingWorker[LogoParser.ParseResult[List[LogoOp]],Unit]() {
+   				new SwingWorker[LogoParser.ParseResult[List[LogoCommand]],Unit]() {
    	  					   	  				    
    					override def doInBackground() = LogoParser.parse(codeText.getText)
    	  				  	
@@ -199,76 +198,93 @@ class MainApplication {
     frame.setVisible(true)
    }
 
-class Logo {
-  var heading = 0
-  var position = Position(0,0)
+class Logo { 
+  class LogoEvaluationState {
+	  var x = 0
+	  var y = 0
+	  var heading = 0
+  }
   
-  implicit def dblToInt(d: Double): Int = 
-    if (d  > 0 ) (d +0.5).toInt 
-    else (d-0.5).toInt
-
-  def forward(position: Position, x: Int, d: Int) =
-	  Position(position.x + x * Math.sin(Math.toRadians(d)), position.y + x * Math.cos(Math.toRadians(d)))
+  implicit def dblToInt(d: Double):Int = if (d > 0) (d+0.5).toInt else (d-0.5).toInt
  
-  def parse(s: String) : List[LogoOp] = LogoParser.parse(s).get
+  def parse(s: String) : List[LogoCommand] = LogoParser.parse(s).get
   
-  def evaluate(parseResult: LogoParser.ParseResult[List[LogoOp]], g:Graphics2D) {
+  def evaluate(parseResult: LogoParser.ParseResult[List[LogoCommand]], g:Graphics2D) {
+    var state = new LogoEvaluationState
     if (parseResult.successful) {
-      evaluate(parseResult.get, g)
+      evaluate(parseResult.get, g, state)
     }
     // draw turtle
-    evaluate(parse("RT 90 FD 3 LT 110 FD 10 LT 140 FD 10 LT 110 FD 3"), g)
+    evaluate(parse("RT 90 FD 3 LT 110 FD 10 LT 140 FD 10 LT 110 FD 3"), g, state)
   }
   
-  def evaluate(e : List[LogoOp], g:Graphics2D):Unit =  
-    e match {
-    
-    case Nil => Nil
-    
-    case Home() :: tail => {
-      heading = 0
-      position = Position(0,0)
-      evaluate(tail, g)
-    }
-                            
-    case Forward(x) :: tail => {
-      val nextPosition = forward(position, x, heading)
-      g.drawLine(position.x, position.y, nextPosition.x, nextPosition.y)
-      position = nextPosition
-      evaluate(tail, g)
-    }
-    
-    case Turn(x) :: tail => {
-      heading += x
-      evaluate(tail, g)
-    }
-    
-    case Repeat(0, y) :: tail => evaluate(tail, g)
-    
-    case Repeat(x, y) :: tail => evaluate(y ::: Repeat(x-1, y)::tail, g)
-    
-    case _ => Nil
+//  def evaluate(list : List[LogoCommand], g:Graphics2D, state:LogoEvaluationState) {  
+//	  list.foreach(evaluate(_, g, state))
+//  }
+  
+//  def evaluate(command:LogoCommand, g:Graphics2D, state:LogoEvaluationState) {
+//	  command match {
+//	  	case Forward(distance) => {
+//	  		val (nextX, nextY) = (state.x + distance * Math.sin(Math.toRadians(state.heading)),
+//                            	  state.y + distance * Math.cos(Math.toRadians(state.heading)))
+//            g.drawLine(state.x, state.y, nextX, nextY)
+//            state.x = nextX
+//            state.y = nextY
+//	  	}
+//    
+//	  	case Turn(degrees) => state.heading += degrees
+//    
+//	  	case Repeat(count, statements) => (0 to count).foreach { _ =>
+//	  										evaluate(statements, g, state)
+//	  									  }
+//	  }
+//   }
+  
+  private def evaluate(list: List[LogoCommand], g:Graphics2D, state:LogoEvaluationState) {  
+	if (!list.isEmpty) {
+		val head :: tail = list
+		head match {
+		  	case Forward(distance) => {
+		  		val (nextX, nextY) = (state.x + distance * sin(toRadians(state.heading)),
+		  		state.y + distance * cos(toRadians(state.heading)))	
+				g.drawLine(state.x, state.y, nextX, nextY)
+				state.x = nextX
+				state.y = nextY
+				evaluate(tail, g, state)
+		  	}
+		  	case Turn(degrees) => {
+		  		state.heading += degrees
+		  		evaluate(tail, g, state)
+		  	}
+		  	case Repeat(0, _) => 	evaluate(tail, g, state)
+		  
+		  	case Repeat(count, statements) => 
+				evaluate(statements ::: Repeat(count-1, statements)::tail, g, state)
+		}
+	}
   }
+  
 }
    
-  object LogoParser extends JavaTokenParsers  {
-          
-    def program:Parser[List[LogoOp]] = rep(stmt)
+  object LogoParser extends RegexParsers  {
     
-    def forward = ("FD"|"FORWARD")~>wholeNumber ^^ { case value => Forward(value.toInt) }
-    
-    def right = ("RT"|"RIGHT")~>wholeNumber ^^ { case value => Turn(-value.toInt) }
-    
-    def left = ("LT"|"LEFT")~>wholeNumber ^^ { case value => Turn(value.toInt) }
-                                               
-    def repeat = "REPEAT" ~> wholeNumber ~ "[" ~ rep(stmt) ~ "]" ^^ { case number~_~stmts~_ => Repeat(number.toInt, stmts) }
+    def nonNegativeInt = """\d+"""r
         
-    def stmt:Parser[LogoOp] = forward | right | left | repeat
+    def forward = ("FD"|"FORWARD")~>nonNegativeInt ^^ { case value => Forward(value.toInt) }
+    
+    def right = ("RT"|"RIGHT")~>nonNegativeInt ^^ { case value => Turn(-value.toInt) }
+    
+    def left = ("LT"|"LEFT")~>nonNegativeInt ^^ { case value => Turn(value.toInt) }
+                                               
+    def repeat = "REPEAT" ~> nonNegativeInt ~ "[" ~ rep(stmt) ~ "]" ^^ { case number~_~stmts~_ => Repeat(number.toInt, stmts) }
+        
+    def stmt:Parser[LogoCommand] = forward | right | left | repeat
+
+    def program = rep(stmt)
     	 
     def parse(text:String) = {
     	parseAll(program, text)
-    }                    
-    
+    }    
   }
 
 object Main {
