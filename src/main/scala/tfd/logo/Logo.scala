@@ -2,7 +2,7 @@ package tfd.logo
 
 import javax.swing.{AbstractAction, ImageIcon, JButton, JComponent, JPanel, JFileChooser, JFrame, JOptionPane, JScrollPane, JSplitPane, JTextArea, JToolBar, SwingWorker}
 import javax.swing.filechooser.{FileNameExtensionFilter}
-import java.awt.{BorderLayout, Color, Dimension, Graphics, Graphics2D}
+import java.awt.{BorderLayout, Dimension, Graphics, Graphics2D}
 import java.awt.event.{ActionEvent}
 import java.awt.image.{BufferedImage}
 import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
@@ -16,6 +16,7 @@ sealed abstract class LogoCommand
 case class Forward(x: Int) extends LogoCommand
 case class Turn(x: Int) extends LogoCommand
 case class Repeat(i: Int, e: List[LogoCommand]) extends LogoCommand
+case class Color(red:Int, green:Int, blue:Int) extends LogoCommand
 
 class DrawCanvas extends JComponent {
   private var image:BufferedImage = null
@@ -45,9 +46,9 @@ class DrawCanvas extends JComponent {
     
   def doDraw() {
       val g = image.getGraphics.asInstanceOf[Graphics2D]
-	  g.setColor(Color.WHITE)
+	  g.setColor(java.awt.Color.WHITE)
       g.fillRect(0, 0, imageWidth, imageHeight)
-      g.setColor(Color.BLACK)
+      g.setColor(java.awt.Color.BLACK)
       g.translate(imageWidth/2, imageHeight/2)
       if (parseResult != null) (new Logo).evaluate(parseResult, g)
       repaint()
@@ -203,6 +204,7 @@ class Logo {
 	  var x = 0
 	  var y = 0
 	  var heading = 0
+	  var color = java.awt.Color.BLACK
   }
   
   implicit def dblToInt(d: Double):Int = if (d > 0) (d+0.5).toInt else (d-0.5).toInt
@@ -215,7 +217,7 @@ class Logo {
       evaluate(parseResult.get, g, state)
     }
     // draw turtle
-    evaluate(parse("RT 90 FD 3 LT 110 FD 10 LT 140 FD 10 LT 110 FD 3"), g, state)
+    evaluate(parse("COLOR 0 0 0 RT 90 FD 3 LT 110 FD 10 LT 140 FD 10 LT 110 FD 3"), g, state)
   }
   
 //  def evaluate(list : List[LogoCommand], g:Graphics2D, state:LogoEvaluationState) {  
@@ -247,7 +249,8 @@ class Logo {
 		  	case Forward(distance) => {
 		  		val (nextX, nextY) = (state.x + distance * sin(toRadians(state.heading)),
 		  		state.y + distance * cos(toRadians(state.heading)))	
-				g.drawLine(state.x, state.y, nextX, nextY)
+		  		g.setColor(state.color)
+      			g.drawLine(state.x, state.y, nextX, nextY)
 				state.x = nextX
 				state.y = nextY
 				evaluate(tail, g, state)
@@ -260,6 +263,10 @@ class Logo {
 		  
 		  	case Repeat(count, statements) => 
 				evaluate(statements ::: Repeat(count-1, statements)::tail, g, state)
+    
+            case Color(red, green, blue) =>
+                state.color = new java.awt.Color(red, green, blue)
+                evaluate(tail, g, state)
 		}
 	}
   }
@@ -268,17 +275,19 @@ class Logo {
    
   object LogoParser extends RegexParsers  {
     
-    def nonNegativeInt = """\d+"""r
+    def nonNegativeInt = """\d+""".r ^^ { _.toInt }
         
-    def forward = ("FD"|"FORWARD")~>nonNegativeInt ^^ { case value => Forward(value.toInt) }
+    def forward = ("FD"|"FORWARD")~>nonNegativeInt ^^ { Forward(_) }
     
-    def right = ("RT"|"RIGHT")~>nonNegativeInt ^^ { case value => Turn(-value.toInt) }
+    def right = ("RT"|"RIGHT")~>nonNegativeInt ^^ { value => Turn(-value) }
     
-    def left = ("LT"|"LEFT")~>nonNegativeInt ^^ { case value => Turn(value.toInt) }
+    def left = ("LT"|"LEFT")~>nonNegativeInt ^^ { value => Turn(value) }
                                                
-    def repeat = "REPEAT" ~> nonNegativeInt ~ "[" ~ rep(stmt) ~ "]" ^^ { case number~_~stmts~_ => Repeat(number.toInt, stmts) }
+    def repeat = "REPEAT" ~> nonNegativeInt ~ "[" ~ rep(stmt) ~ "]" ^^ { case number~_~stmts~_ => Repeat(number, stmts) }
+    
+    def color = "COLOR" ~> nonNegativeInt ~ nonNegativeInt ~ nonNegativeInt ^^ { case red~green~blue => Color(red, green, blue) }
         
-    def stmt:Parser[LogoCommand] = forward | right | left | repeat
+    def stmt:Parser[LogoCommand] = forward | right | left | repeat | color
 
     def program = rep(stmt)
     	 
