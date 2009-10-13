@@ -6,7 +6,8 @@
 	<version>0.0.1-SNAPSHOT</version>
 
 	<properties>
-		<scala.version>2.7.5</scala.version>
+		<scala.version>2.7.6</scala.version>
+		<main.class>tfd.logo.Main</main.class>
 	</properties>
 
 	<repositories>
@@ -50,6 +51,23 @@
 		<sourceDirectory>src/main/scala</sourceDirectory>
 		<testSourceDirectory>src/test/scala</testSourceDirectory>
 		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>src/main/java</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.scala-tools</groupId>
 				<artifactId>maven-scala-plugin</artifactId>
@@ -96,7 +114,68 @@
 					</execution>
 				</executions>
 				<configuration>
-					<mainClass>tfd.logo.Main</mainClass>
+					<mainClass>${main.class}</mainClass>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.1</version>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+					<archive>
+						<manifest>
+							<mainClass>${main.class}</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.pyx4me</groupId>
+				<artifactId>proguard-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>proguard</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<libs>
+						<lib>${java.home}\lib\rt.jar</lib>
+						<lib>${java.home}\lib\jsse.jar</lib>
+					</libs>
+					<includeDependency>false</includeDependency>
+					<options>
+						<option>-dontnote</option>
+						<option>-dontwarn</option>
+						<option>-dontoptimize</option>
+						<option>-dontobfuscate</option>
+						<!-- option>-dontskipnonpubliclibraryclasses</option-->
+						<option>-dontskipnonpubliclibraryclassmembers</option>
+						<option>-allowaccessmodification</option>
+						<option>-keep class ${main.class} { public
+							static
+							void
+							main(java.lang.String[]); }</option>
+					</options>
+					<maxMemory>768m</maxMemory>
+					<injar>${project.build.finalName}-jar-with-dependencies.jar</injar>
+					<outjar>${project.build.finalName}-small.jar</outjar>
+					<outputDirectory>${project.build.directory}</outputDirectory>
+					<addMavenDescriptor>false</addMavenDescriptor>
 				</configuration>
 			</plugin>
 		</plugins>

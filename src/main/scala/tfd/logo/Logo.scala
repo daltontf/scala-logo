@@ -17,6 +17,8 @@ case class Forward(x: Int) extends LogoCommand
 case class Turn(x: Int) extends LogoCommand
 case class Repeat(i: Int, e: List[LogoCommand]) extends LogoCommand
 case class Color(red:Int, green:Int, blue:Int) extends LogoCommand
+case class PenUp() extends LogoCommand
+case class PenDown() extends LogoCommand
 
 class DrawCanvas extends JComponent {
   private var image:BufferedImage = null
@@ -174,10 +176,10 @@ class MainApplication {
       		btn.setToolTipText(toolTipText)
       		btn
       }
-		add(createButtonForAction(newAction, "./new.png", "Start new Logo program"))
-    	add(createButtonForAction(openAction, "./open.png", "Open existing .logo file"))
-    	add(createButtonForAction(saveAction, "./save.png", "Save current logo code to file"))
-    	add(createButtonForAction(runAction, "./go.png", "Run Logo program"))
+		add(createButtonForAction(newAction, "new.png", "Start new Logo program"))
+    	add(createButtonForAction(openAction, "open.png", "Open existing .logo file"))
+    	add(createButtonForAction(saveAction, "save.png", "Save current logo code to file"))
+    	add(createButtonForAction(runAction, "go.png", "Run Logo program"))
     }
     
     val codeCanvasPane = new JSplitPane(
@@ -205,6 +207,7 @@ class Logo {
 	  var y = 0
 	  var heading = 0
 	  var color = java.awt.Color.BLACK
+      var penup = false
   }
   
   implicit def dblToInt(d: Double):Int = if (d > 0) (d+0.5).toInt else (d-0.5).toInt
@@ -250,7 +253,9 @@ class Logo {
 		  		val (nextX, nextY) = (state.x + distance * sin(toRadians(state.heading)),
 		  		state.y + distance * cos(toRadians(state.heading)))	
 		  		g.setColor(state.color)
-      			g.drawLine(state.x, state.y, nextX, nextY)
+		  		if (!state.penup) {
+		  			g.drawLine(state.x, state.y, nextX, nextY)
+		  		}
 				state.x = nextX
 				state.y = nextY
 				evaluate(tail, g, state)
@@ -264,9 +269,18 @@ class Logo {
 		  	case Repeat(count, statements) => 
 				evaluate(statements ::: Repeat(count-1, statements)::tail, g, state)
     
-            case Color(red, green, blue) =>
+            case Color(red, green, blue) => {
                 state.color = new java.awt.Color(red, green, blue)
                 evaluate(tail, g, state)
+            }
+            case PenDown() => { 
+            	state.penup = false
+            	evaluate(tail, g, state)
+            }
+            case PenUp() => { 
+            	state.penup = true
+            	evaluate(tail, g, state)
+            }            
 		}
 	}
   }
@@ -286,8 +300,12 @@ class Logo {
     def repeat = "REPEAT" ~> nonNegativeInt ~ "[" ~ rep(stmt) ~ "]" ^^ { case number~_~stmts~_ => Repeat(number, stmts) }
     
     def color = "COLOR" ~> nonNegativeInt ~ nonNegativeInt ~ nonNegativeInt ^^ { case red~green~blue => Color(red, green, blue) }
+    
+    def penUp = ("PENUP"|"PU") ^^ { _ => PenUp()}
+    
+    def penDown = ("PENDOWN"|"PD") ^^ { _ => PenDown()}
         
-    def stmt:Parser[LogoCommand] = forward | right | left | repeat | color
+    def stmt:Parser[LogoCommand] = forward | right | left | repeat | color | penUp | penDown
 
     def program = rep(stmt)
     	 
