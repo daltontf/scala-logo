@@ -112,10 +112,10 @@ class LogoTest {
 		val frmOper = findJFrame(frm => frm.getTitle == "Scala Logo")
   
 //		val contentPane = frmOper.getContentPane
-//		val newButtonOper = findJButton(frmOper, toolTipTextEquals("Start new Logo program"))
+//		val newButtonOper = findJButton(frmOper, toolTipTextEquals("Start new LogoEvaluator program"))
 //		val openButtonOper = findJButton(frmOper, toolTipTextEquals("Open existing .logo file"))
 //		val saveButtonOper = findJButton(frmOper, toolTipTextEquals("Save current logo code to file"))
-//		val runButtonOper = findJButton(frmOper, toolTipTextEquals("Run Logo program"))
+//		val runButtonOper = findJButton(frmOper, toolTipTextEquals("Run LogoEvaluator program"))
         
 		val List(newButtonOper, openButtonOper, saveButtonOper, runButtonOper) = 
             List("Start new Logo program",
